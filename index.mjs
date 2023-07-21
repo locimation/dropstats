@@ -40,6 +40,7 @@ else if(args.hostsfile) {
   const sessions = {};
   let total_ports = 0;
   for(var i in hosts) {
+    starting_stats_spinner.text = `Gathering initial stats... ${hosts[i]}`;
     sessions[i] = netSnmp.createSession(hosts[i], 'public');
     starting_stats[i] = await stats.table(sessions[i]);
     const num_ports = Object.keys(starting_stats[i]).length;
