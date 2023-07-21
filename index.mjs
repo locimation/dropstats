@@ -38,26 +38,35 @@ else if(args.hostsfile) {
 
   const starting_stats = {};
   const sessions = {};
+  const failed = [];
   let total_ports = 0;
   for(var i in hosts) {
     starting_stats_spinner.text = `Gathering initial stats... ${hosts[i]}`;
     sessions[i] = netSnmp.createSession(hosts[i], 'public');
-    starting_stats[i] = await stats.table(sessions[i]);
-    const num_ports = Object.keys(starting_stats[i]).length;
+    let these_stats = {};
+    try { these_stats = await stats.table(sessions[i]); } catch { }
+    const num_ports = Object.keys(these_stats).length;
     if(num_ports == 0) {
-      starting_stats_spinner.fail(`Gathering initial stats... failed on host ${hosts[i]}.`);
-      return;
+      starting_stats_spinner.text = `Gathering initial stats... failed on host ${hosts[i]}.`;
+      failed.push(hosts[i]);
+    } else {
+      total_ports += num_ports;
+      starting_stats[i] = these_stats;
     }
-    total_ports += num_ports;
   }
 
-  const num_hosts = Object.keys(hosts).length;
-  const detail = `${total_ports} ports found across ${num_hosts} host${num_hosts > 1 ? 's':'' }`;
-  starting_stats_spinner.succeed(`Gathering initial stats... done (${detail}).`);
+  const num_hosts = Object.keys(starting_stats).length;
+  let detail = `${total_ports} ports found on ${num_hosts} host${num_hosts > 1 ? 's':'' }`;
+  if(failed.length > 0) {
+    detail += `, ${failed.length} hosts failed`;
+    starting_stats_spinner.warn(`Gathering initial stats... done (${detail}).`);
+  } else {
+    starting_stats_spinner.succeed(`Gathering initial stats... done (${detail}).`);
+  }
 
   // Delay
   const waiting_spinner = ora('Waiting to re-poll...').start();
-  for(var i = args.delay ? parseInt(args.delay, 10) : 5; i > 0; i--) {
+  for(var i = args.delay ? parseInt(args.delay, 10) : 60; i > 0; i--) {
     waiting_spinner.text = `Waiting to re-poll... (${i}s)`;
     await delay(1000);
   }
@@ -67,7 +76,7 @@ else if(args.hostsfile) {
   const ending_stats_spinner = ora('Gathering final stats...').start();
 
   const ending_stats = {};
-  for(var i in hosts) {
+  for(var i in starting_stats) {
     ending_stats[i] = await stats.table(sessions[i]);
     const num_starting_ports = Object.keys(starting_stats[i]).length;
     const num_ports_diff = num_starting_ports - Object.keys(ending_stats[i]).length;
@@ -81,7 +90,7 @@ else if(args.hostsfile) {
 
   // Print stats diff
   let stats_diff = false;
-  for(var i in hosts) {
+  for(var i in starting_stats) {
 
     let host_header_printed = false;
 
@@ -119,6 +128,14 @@ else if(args.hostsfile) {
 
   if(!stats_diff) {
     console.log(chalk.green('\nNo differences were detected.\n'));
+  }
+
+  if(failed.length > 0) {
+    console.log(chalk.red('\nFailed hosts:'));
+    for(var i in failed) {
+      console.log('  - ' + hosts[i]);
+    }
+    console.log('');
   }
 
 })();

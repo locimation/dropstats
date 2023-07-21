@@ -29,6 +29,8 @@ export async function table(session, oidRoot, mapping) {
 
   for(var subOid in mapping) {
     const data = await subtree(session, oidRoot + '.' + subOid);
+    if(Object.keys(data).length == 0)
+      throw new Error('Failed to get data.');
     for(var i in data) {
 
       if(i.includes('.'))
