@@ -17,7 +17,7 @@ if(args.host)
   hosts = args.host.split(',').map(s => s.trim());
 else if(args.hostsfile) {
   try {
-    hosts = readFileSync(args.hostsfile).toString().trim().split('\n').map(s => s.trim());
+    hosts = readFileSync(args.hostsfile).toString().trim().split('\n').map(s => s.trim()).filter(s => !s.startsWith('#'));
   } catch {
     console.error(chalk.red('ERROR: Failed to read hosts file.\n'));
     process.exit(-1);
