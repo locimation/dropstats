@@ -1,5 +1,7 @@
 import chalk from 'chalk';
 
+import { readFileSync } from 'fs';
+
 import { args } from './args.mjs';
 
 import * as netSnmp from 'net-snmp';
@@ -9,10 +11,28 @@ import * as stats from './stats.mjs';
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-let hosts = args.host.split(',').map(s => s.trim());
+let hosts = [];
+
+if(args.host)
+  hosts = args.host.split(',').map(s => s.trim());
+else if(args.hostsfile) {
+  try {
+    hosts = readFileSync(args.hostsfile).toString().trim().split('\n').map(s => s.trim());
+  } catch {
+    console.error(chalk.red('ERROR: Failed to read hosts file.\n'));
+    process.exit(-1);
+  }
+}
 
 (async () => {
 
+  // Info
+  console.log(chalk.green('Configured hosts:'));
+  for(var i in hosts) {
+    console.log('  - ' + hosts[i]);
+  }
+  console.log('');
+  
   // Gather starting stats
   const starting_stats_spinner = ora('Gathering initial stats...').start();
 
